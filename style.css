@@ -1,0 +1,57 @@
+/* إعدادات أساسية للصفحة */
+body {
+    margin: 0;
+    background-color: #87ceeb; /* أزرق سماوي */
+    overflow: hidden; /* إخفاء أي أشرطة تمرير */
+}
+
+/* حاوية أزرار التحكم الرئيسية */
+.controls {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    justify-content: space-between; /* توزيع الحاويتين يمين ويسار */
+    align-items: center;
+    pointer-events: none; /* السماح بالتفاعل مع عناصر اللعبة خلف الأزرار */
+}
+
+/* تصميم الأزرار */
+.controls button {
+    background-color: rgba(0, 0, 0, 0.5); /* خلفية سوداء شبه شفافة */
+    color: white;
+    border: none;
+    border-radius: 50%; /* حواف دائرية تمامًا */
+    font-size: 24px;
+    font-weight: bold;
+    width: 60px;
+    height: 60px;
+    margin: 0 10px;
+    cursor: pointer;
+    pointer-events: all; /* تفعيل التفاعل مع الأزرار نفسها */
+    touch-action: manipulation; /* تحسين استجابة اللمس */
+    -webkit-tap-highlight-color: transparent; /* إزالة تمييز اللمس على iOS */
+}
+
+/* منع تحديد النص والتكبير باللمس المزدوج */
+body, .controls button {
+    user-select: none; /* منع تحديد النص */
+    -webkit-user-select: none; /* لمتصفحات WebKit */
+    -moz-user-select: none; /* لمتصفح Firefox */
+    -ms-user-select: none; /* لمتصفح Internet Explorer */
+}
+
+/* حاويات التحكم الفرعية */
+.left-controls, .right-controls {
+    display: flex;
+}
+
+/* إخفاء أزرار التحكم على الشاشات الكبيرة (مثل الكمبيوتر) */
+@media (min-width: 769px) {
+    .controls {
+        display: none;
+    }
+}
