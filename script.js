@@ -5,35 +5,6 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.m
 import * as Multisynq from 'https://cdn.jsdelivr.net/npm/@multisynq/client@latest/bundled/multisynq-client.esm.js';
 
 // =====================================================================================
-// الفئة المسؤولة عن محاكاة حالة اللعبة (الجانب المنطقي)
-// =====================================================================================
-class SharedSimulation {
-    constructor() {
-        // مصفوفة لتخزين بيانات كل سيارة في اللعبة
-        this.cars = [];
-    }
-
-    // هذه الدالة تُستدعى تلقائيًا بواسطة Multisynq عند انضمام لاعب جديد
-    onPlayerAdded(player) {
-        // إنشاء سيارة جديدة للاعب الجديد وإضافتها للمحاكاة
-        const car = new SimCar();
-        car.playerId = player.id; // ربط السيارة باللاعب
-        // إعطاء السيارة لونًا عشوائيًا
-        car.color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-        this.cars.push(car);
-    }
-
-    // هذه الدالة تُستدعى تلقائيًا بواسطة Multisynq عند مغادرة لاعب
-    onPlayerRemoved(player) {
-        // إزالة سيارة اللاعب الذي غادر من مصفوفة السيارات
-        const index = this.cars.findIndex(c => c.playerId === player.id);
-        if (index !== -1) {
-            this.cars.splice(index, 1);
-        }
-    }
-}
-
-// =====================================================================================
 // فئة تمثل بيانات سيارة واحدة في المحاكاة
 // =====================================================================================
 class SimCar {
@@ -44,7 +15,6 @@ class SimCar {
         // متغيرات الحركة والفيزياء
         this.position = { x: (Math.random() - 0.5) * 10, y: 0.5, z: (Math.random() - 0.5) * 10 };
         this.rotation = { x: 0, y: 0, z: 0 };
-        this.velocity = { x: 0, z: 0 };
 
         // متغيرات التحكم
         this.controls = { forward: false, backward: false, left: false, right: false };
@@ -84,13 +54,47 @@ class SimCar {
         }
         
         // تحديث الموضع بناءً على السرعة والاتجاه
-        this.velocity.x = Math.sin(this.rotation.y) * this.speed;
-        this.velocity.z = Math.cos(this.rotation.y) * this.speed;
+        const velocityX = Math.sin(this.rotation.y) * this.speed;
+        const velocityZ = Math.cos(this.rotation.y) * this.speed;
 
-        this.position.x -= this.velocity.x;
-        this.position.z -= this.velocity.z;
+        this.position.x -= velocityX;
+        this.position.z -= velocityZ;
     }
 }
+
+// =====================================================================================
+// الفئة المسؤولة عن محاكاة حالة اللعبة (الجانب المنطقي)
+// =====================================================================================
+class SharedSimulation {
+    constructor() {
+        // مصفوفة لتخزين بيانات كل سيارة في اللعبة
+        this.cars = [];
+    }
+
+    // هذه الدالة تُستدعى تلقائيًا بواسطة Multisynq عند انضمام لاعب جديد
+    onPlayerAdded(player) {
+        // إنشاء سيارة جديدة للاعب الجديد وإضافتها للمحاكاة
+        const car = new SimCar();
+        car.playerId = player.id; // ربط السيارة باللاعب
+        // إعطاء السيارة لونًا عشوائيًا
+        car.color = '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+        this.cars.push(car);
+    }
+
+    // هذه الدالة تُستدعى تلقائيًا بواسطة Multisynq عند مغادرة لاعب
+    onPlayerRemoved(player) {
+        // إزالة سيارة اللاعب الذي غادر من مصفوفة السيارات
+        const index = this.cars.findIndex(c => c.playerId === player.id);
+        if (index !== -1) {
+            this.cars.splice(index, 1);
+        }
+    }
+}
+
+// *** الحل للمشكلة ***
+// يجب أن نخبر Multisynq بجميع الفئات المخصصة التي نستخدمها داخل النموذج الرئيسي.
+// هذا يسمح للمكتبة بمعرفة كيفية إنشاء كائنات `SimCar` عندما تتلقى بيانات المزامنة.
+SharedSimulation.classes = { SimCar };
 
 
 // =====================================================================================
@@ -175,12 +179,11 @@ class SimInterface {
             const mountainMat = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // بني
             const mountain = new THREE.Mesh(mountainGeo, mountainMat);
 
-            // إضافة قمة ثلجية للجبال الطويلة
             if (height > 30) {
                  const snowCapGeo = new THREE.ConeGeometry(radius * 0.4, height * 0.3, 16);
                  const snowCapMat = new THREE.MeshLambertMaterial({ color: 0xffffff });
                  const snowCap = new THREE.Mesh(snowCapGeo, snowCapMat);
-                 snowCap.position.y = height * 0.4; // وضعها في الأعلى
+                 snowCap.position.y = height * 0.4;
                  mountain.add(snowCap);
             }
            
@@ -196,14 +199,12 @@ class SimInterface {
         for (let i = 0; i < 100; i++) {
              const tree = new THREE.Group();
              const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, 2, 8);
-             const trunkMat = new THREE.MeshLambertMaterial({ color: 0x654321 }); // بني
+             const trunkMat = new THREE.MeshLambertMaterial({ color: 0x654321 });
              const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-
              const leavesGeo = new THREE.ConeGeometry(1.5, 4, 8);
-             const leavesMat = new THREE.MeshLambertMaterial({ color: 0x228B22 }); // أخضر
+             const leavesMat = new THREE.MeshLambertMaterial({ color: 0x228B22 });
              const leaves = new THREE.Mesh(leavesGeo, leavesMat);
              leaves.position.y = 3;
-            
              tree.add(trunk);
              tree.add(leaves);
              tree.position.set(
@@ -211,9 +212,7 @@ class SimInterface {
                 1,
                 (Math.random() - 0.5) * 100
              );
-             // تجنب وضع الأشجار على الطريق
              if (Math.abs(tree.position.x) < 7) continue;
-
              tree.castShadow = true;
              this.scene.add(tree);
         }
@@ -222,27 +221,13 @@ class SimInterface {
         for (let i = 0; i < 30; i++) {
             const cloud = new THREE.Group();
             const mainSphere = new THREE.SphereGeometry(Math.random() * 5 + 2, 8, 8);
-            const cloudMat = new THREE.MeshBasicMaterial({
-                 color: 0xffffff,
-                 transparent: true,
-                 opacity: 0.7 
-            });
-
+            const cloudMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
             for (let j = 0; j < 5; j++) {
                 const spherePart = new THREE.Mesh(mainSphere, cloudMat);
-                spherePart.position.set(
-                    (Math.random() - 0.5) * 8,
-                    (Math.random() - 0.5) * 3,
-                    (Math.random() - 0.5) * 5
-                );
+                spherePart.position.set( (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 3, (Math.random() - 0.5) * 5 );
                 cloud.add(spherePart);
             }
-
-            cloud.position.set(
-                (Math.random() - 0.5) * 300,
-                Math.random() * 20 + 20, // ارتفاع السحاب
-                (Math.random() - 0.5) * 300
-            );
+            cloud.position.set( (Math.random() - 0.5) * 300, Math.random() * 20 + 20, (Math.random() - 0.5) * 300 );
             this.scene.add(cloud);
         }
     }
@@ -250,15 +235,12 @@ class SimInterface {
     // --- إنشاء نموذج سيارة ثلاثي الأبعاد ---
     createCarMesh(color) {
         const car = new THREE.Group();
-
-        // جسم السيارة
         const bodyGeo = new THREE.BoxGeometry(2, 1, 4);
         const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.3, metalness: 0.2 });
         const body = new THREE.Mesh(bodyGeo, bodyMat);
         body.castShadow = true;
         car.add(body);
 
-        // كابينة السيارة
         const cabinGeo = new THREE.BoxGeometry(1.8, 0.8, 2.5);
         const cabinMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, transparent: true, opacity: 0.8 });
         const cabin = new THREE.Mesh(cabinGeo, cabinMat);
@@ -266,25 +248,16 @@ class SimInterface {
         cabin.position.z = -0.2;
         car.add(cabin);
 
-        // العجلات
         const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.2, 16);
         const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
-        
-        const wheelPositions = [
-            { x: 1.1, y: -0.2, z: 1.2 },
-            { x: -1.1, y: -0.2, z: 1.2 },
-            { x: 1.1, y: -0.2, z: -1.2 },
-            { x: -1.1, y: -0.2, z: -1.2 },
-        ];
-
+        const wheelPositions = [ { x: 1.1, z: 1.2 }, { x: -1.1, z: 1.2 }, { x: 1.1, z: -1.2 }, { x: -1.1, z: -1.2 } ];
         wheelPositions.forEach(pos => {
             const wheel = new THREE.Mesh(wheelGeo, wheelMat);
             wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(pos.x, pos.y, pos.z);
+            wheel.position.set(pos.x, -0.2, pos.z);
             wheel.castShadow = true;
             car.add(wheel);
         });
-
         return car;
     }
 
@@ -293,40 +266,26 @@ class SimInterface {
         const localCar = this.simulation.cars.find(c => c.playerId === this.session.player.id);
         if (!localCar) return;
 
-        // --- التحكم بالكيبورد ---
         const keyMap = {};
-        const onKeyChange = () => {
-             localCar.controls.forward = keyMap['w'] || keyMap['ArrowUp'] || false;
-             localCar.controls.backward = keyMap['s'] || keyMap['ArrowDown'] || false;
-             localCar.controls.left = keyMap['a'] || keyMap['ArrowLeft'] || false;
-             localCar.controls.right = keyMap['d'] || keyMap['ArrowRight'] || false;
+        const updateControls = () => {
+             localCar.controls.forward = !!(keyMap['w'] || keyMap['arrowup']);
+             localCar.controls.backward = !!(keyMap['s'] || keyMap['arrowdown']);
+             localCar.controls.left = !!(keyMap['a'] || keyMap['arrowleft']);
+             localCar.controls.right = !!(keyMap['d'] || keyMap['arrowright']);
         };
 
-        document.addEventListener('keydown', (e) => {
-            keyMap[e.key.toLowerCase()] = true;
-            onKeyChange();
-        });
-        document.addEventListener('keyup', (e) => {
-            keyMap[e.key.toLowerCase()] = false;
-            onKeyChange();
-        });
+        document.addEventListener('keydown', (e) => { keyMap[e.key.toLowerCase()] = true; updateControls(); });
+        document.addEventListener('keyup', (e) => { keyMap[e.key.toLowerCase()] = false; updateControls(); });
 
-        // --- التحكم بأزرار اللمس ---
         const setupButton = (id, controlKey) => {
             const button = document.getElementById(id);
-            const setControl = (value) => {
-                localCar.controls[controlKey] = value;
-                // يجب استدعاء onKeyChange للتأكد من تحديث كافة الحالات
-                // هذا مفيد إذا تم الضغط على زرين معًا
-                onKeyChange();
-            };
+            const setControl = (value) => { localCar.controls[controlKey] = value; };
             button.addEventListener('touchstart', (e) => { e.preventDefault(); setControl(true); }, { passive: false });
             button.addEventListener('touchend', (e) => { e.preventDefault(); setControl(false); }, { passive: false });
             button.addEventListener('mousedown', () => setControl(true));
             button.addEventListener('mouseup', () => setControl(false));
             button.addEventListener('mouseleave', () => setControl(false));
         };
-
         setupButton('btn-fwd', 'forward');
         setupButton('btn-bwd', 'backward');
         setupButton('btn-left', 'left');
@@ -335,29 +294,26 @@ class SimInterface {
 
     // --- دالة التحديث الرئيسية (Game Loop) ---
     update() {
-        // تحديث منطق كل سيارة في المحاكاة
         for (const car of this.simulation.cars) {
-            car.update();
+            // تحديث منطق السيارة فقط إذا كانت للاعب المحلي
+            if (car.playerId === this.session.player.id) {
+                car.update();
+            }
 
-            // إضافة أو تحديث كائن السيارة في المشهد
             let carObj = this.carObjects.get(car.playerId);
             if (!carObj) {
                 carObj = this.createCarMesh(car.color);
                 this.carObjects.set(car.playerId, carObj);
                 this.scene.add(carObj);
-
-                // إذا كانت هذه هي سيارة اللاعب المحلي، قم بإعداد التحكم
                 if (car.playerId === this.session.player.id) {
                     this.setupControls();
                 }
             }
 
-            // مزامنة موضع ودوران الكائن الرسومي مع بيانات المحاكاة
             carObj.position.set(car.position.x, car.position.y, car.position.z);
-            carObj.rotation.set(car.rotation.x, car.rotation.y, car.rotation.z);
+            carObj.rotation.y = car.rotation.y;
         }
 
-        // إزالة سيارات اللاعبين الذين غادروا
         for (const [playerId, carObj] of this.carObjects.entries()) {
             if (!this.simulation.cars.some(c => c.playerId === playerId)) {
                 this.scene.remove(carObj);
@@ -365,21 +321,16 @@ class SimInterface {
             }
         }
         
-        // تحديث الكاميرا لتتبع سيارة اللاعب المحلي
         const localCarData = this.simulation.cars.find(c => c.playerId === this.session.player.id);
         const localCarObj = this.carObjects.get(this.session.player.id);
-
         if (localCarData && localCarObj) {
-            const cameraOffset = new THREE.Vector3(0, 5, 10); // مسافة الكاميرا خلف السيارة
-            // تدوير مسافة الكاميرا بناءً على دوران السيارة
+            const cameraOffset = new THREE.Vector3(0, 5, 10);
             cameraOffset.applyAxisAngle(new THREE.Vector3(0, 1, 0), localCarData.rotation.y);
-            
             const cameraPosition = localCarObj.position.clone().add(cameraOffset);
-            this.camera.position.lerp(cameraPosition, 0.1); // تحريك الكاميرا بسلاسة
+            this.camera.position.lerp(cameraPosition, 0.1);
             this.camera.lookAt(localCarObj.position);
         }
         
-        // عرض المشهد
         this.renderer.render(this.scene, this.camera);
     }
 }
@@ -392,29 +343,22 @@ class SimInterface {
 console.log("الانضمام إلى جلسة Multisynq...");
 
 // ملاحظة هامة: يجب استبدال "YOUR_API_KEY_HERE" بمفتاح API الخاص بك من موقع multisynq.io
-// يمكنك الحصول على مفتاح مجاني من لوحة التحكم بعد التسجيل.
 Multisynq.Session.join({
     apiKey: "2sIWGGhjzCxnD3q373pGGamKkD2Lw2TJkXObGlutOa", // <-- ضع مفتاح API الخاص بك هنا
-    name: location.origin + location.pathname, // اسم فريد للجلسة بناءً على رابط الصفحة
+    name: location.origin + location.pathname,
     password: "none",
-    model: SharedSimulation, // الفئة المسؤولة عن منطق اللعبة
-    view: SimInterface,      // الفئة المسؤولة عن عرض اللعبة
-    debug: ["writes"]        // عرض بيانات المزامنة في الكونسول (مفيد للتصحيح)
+    model: SharedSimulation,
+    view: SimInterface,
+    debug: ["writes"]
 }).then(app => {
     console.log("تم الانضمام بنجاح! التطبيق جاهز.");
-
-    // استخراج الواجهة الرسومية (View)
     const view = app.view || app;
-
-    // بدء حلقة اللعبة (Game Loop)
     const loop = () => {
-        view.update(); // استدعاء دالة التحديث في كل إطار
-        requestAnimationFrame(loop); // طلب الإطار التالي
+        view.update();
+        requestAnimationFrame(loop);
     };
-
-    loop(); // تشغيل الحلقة لأول مرة
+    loop();
 }).catch(err => {
-    // عرض رسالة خطأ واضحة في حالة فشل الانضمام
     console.error("فشل الانضمام إلى الجلسة:", err);
     document.body.innerHTML = `
         <div style="font-family: sans-serif; padding: 20px; text-align: center; color: red;">
@@ -424,4 +368,4 @@ Multisynq.Session.join({
             <p>يرجى التأكد من استبدال <code>"YOUR_API_KEY_HERE"</code> بمفتاحك الصحيح من موقع multisynq.io.</p>
         </div>
     `;
-});
+});```
